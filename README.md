@@ -11,7 +11,9 @@ flows there (amber for the sun, blue for power from the grid, green for power to
 - what the panels made against today's forecast, as a bar.
 
 It fits any size from 1 x 1 to 6 x 3: on a narrow tile it shows the grid and, under it, the sun. Each part shows
-only while there is room for it and a sensor for it. **A tap** opens the same, large, with every part.
+only while there is room for it and a sensor for it. **A tap** opens a card: at the left the flow as in Home Assistant's energy card, the sun above, the grid and the
+house below, joined by lines that take their colour and a dot where power flows; at the right every chosen sensor in
+a row of its own (grid, solar, house, coverage, solar today, forecast with how much of it is made, grid today).
 
 ## Set up
 

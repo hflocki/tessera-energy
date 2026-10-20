@@ -14,7 +14,15 @@
     "today": "Heute",
     "day_solar": "Solar {v}",
     "day_grid": "Bezug {v}",
-    "forecast": "{made} von {of} Prognose"
+    "forecast": "{made} von {of} Prognose",
+    "grid": "Netz",
+    "percent": "{n} %",
+    "row_pv": "PV-Leistung",
+    "row_home": "Hausverbrauch",
+    "row_coverage": "PV-Deckung",
+    "row_pv_today": "PV heute",
+    "row_forecast": "Prognose heute",
+    "row_grid_today": "Netzbezug heute"
   },
   "app": {
     "name": "Energiefluss",

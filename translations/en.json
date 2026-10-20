@@ -14,7 +14,15 @@
     "today": "Today",
     "day_solar": "solar {v}",
     "day_grid": "from the grid {v}",
-    "forecast": "{made} of {of} forecast"
+    "forecast": "{made} of {of} forecast",
+    "grid": "Grid",
+    "percent": "{n} %",
+    "row_pv": "Solar power",
+    "row_home": "House uses",
+    "row_coverage": "Solar coverage",
+    "row_pv_today": "Solar today",
+    "row_forecast": "Forecast today",
+    "row_grid_today": "From the grid today"
   },
   "app": {
     "name": "Energy flow",

@@ -410,7 +410,7 @@ class FlowView {
   lv_obj_t *day_{}, *fc_track_{}, *fc_fill_{}, *fc_label_{}, *note_{};
 };
 
-// ---- The tile and the card ----------------------------------------------------------------------------------------
+// ---- The tile ----------------------------------------------------------------------------------------
 
 class FlowTile : public tessera::Tile {
  public:
@@ -438,23 +438,264 @@ class FlowTile : public tessera::Tile {
   bool invert_ = false;
 };
 
+// ---- The card ------------------------------------------------------------------------------------------------------
+
+static constexpr uint32_t ICON_PANEL = 0xF0D9B;  // solar-panel
+static constexpr uint32_t ICON_LEAF = 0xF032A;   // leaf
+static constexpr uint32_t ICON_SUNNY = 0xF0599;  // weather-sunny
+static constexpr uint32_t ICON_METER = 0xF1A57;  // meter-electric
+
+static void set_border(lv_obj_t *obj, theme::Role role) {
+  const lv_color_t c = ui::color(role);
+  if (!lv_color_eq(lv_obj_get_style_border_color(obj, LV_PART_MAIN), c)) lv_obj_set_style_border_color(obj, c, 0);
+}
+
+// A tap on the tile: at the left the flow as in Home Assistant's energy card (the sun above, the grid and the house
+// below, joined by lines with a dot where power flows), at the right every sensor in a row of its own.
 class DetailsCard : public tessera::Card {
  public:
-  explicit DetailsCard(const EnergyFlow *plugin) : plugin_(plugin), view_(plugin) {}
+  explicit DetailsCard(const EnergyFlow *plugin) : plugin_(plugin) {}
 
   void open(const tessera::CardContext &c) override {
-    view_.create(c.parent, c.width, c.height, true, true);
-    on_tick(0);
-  }
-  void on_tick(uint32_t) override { view_.paint(plugin_->read(plugin_->card_invert)); }
-  void on_theme() override {
-    view_.on_theme();
+    width_ = c.width;
+    height_ = c.height;
+    invert_ = plugin_->card_invert;
+    const bool large = ui::large();
+    line_w_ = std::max(2, ui::px(large ? 3 : 2));
+    ring_w_ = std::max(2, ui::px(large ? 4 : 3));
+    dot_ = ui::px(large ? 12 : 8);
+    label_h_ = ui::line_height(Font::BODY);
+    value_h_ = ui::line_height(Font::BODY_LARGE);
+
+    // The diagram takes the left part, as wide as its height allows; the list the rest.
+    const int gap = ui::px(large ? 32 : 16);
+    diagram_w_ = std::min(width_ * 11 / 20, height_ * 3 / 2);
+    list_x_ = diagram_w_ + gap;
+    list_w_ = width_ - list_x_;
+    dia_ = std::min({diagram_w_ * 10 / 32, (height_ - 2 * label_h_) * 10 / 22, ui::mm(30)});
+
+    // Lines first, so the circles lie over their ends.
+    for (lv_obj_t *&l : lines_) l = ui::block(c.parent, theme::TRACK);
+    for (lv_obj_t *&d : dots_) {
+      d = ui::block(c.parent, theme::TRACK);
+      lv_obj_set_style_radius(d, LV_RADIUS_CIRCLE, 0);
+    }
+    for (Node &n : nodes_) {
+      n.ring = ui::block(c.parent, theme::CARD);
+      lv_obj_set_style_radius(n.ring, LV_RADIUS_CIRCLE, 0);
+      lv_obj_set_style_border_width(n.ring, ring_w_, 0);
+      lv_obj_set_style_border_side(n.ring, LV_BORDER_SIDE_FULL, 0);
+      n.icon = ui::label(c.parent, Font::ICON, theme::INK);
+      lv_obj_set_style_text_align(n.icon, LV_TEXT_ALIGN_CENTER, 0);
+      n.value = ui::label(c.parent, Font::BODY_LARGE, theme::INK);
+      lv_obj_set_style_text_align(n.value, LV_TEXT_ALIGN_CENTER, 0);
+      n.extra = ui::label(c.parent, Font::BODY, theme::MUTED);
+      lv_obj_set_style_text_align(n.extra, LV_TEXT_ALIGN_CENTER, 0);
+      n.name = ui::label(c.parent, Font::BODY, theme::MUTED);
+      lv_obj_set_style_text_align(n.name, LV_TEXT_ALIGN_CENTER, 0);
+    }
+    layout_diagram();
+
+    for (Row &r : rows_) {
+      r.icon = ui::label(c.parent, Font::ICON_SMALL, theme::MUTED);
+      lv_obj_set_style_text_align(r.icon, LV_TEXT_ALIGN_CENTER, 0);
+      r.name = ui::label(c.parent, Font::BODY_LARGE, theme::INK_SOFT);
+      r.value = ui::label(c.parent, Font::TITLE, theme::INK);
+      lv_obj_set_style_text_align(r.value, LV_TEXT_ALIGN_RIGHT, 0);
+      r.rule = ui::block(c.parent, theme::TRACK);
+    }
+    note_ = ui::label(c.parent, Font::BODY_LARGE, theme::MUTED);
+    place(note_, 0, (height_ - value_h_) / 2, width_, value_h_);
     on_tick(0);
   }
 
+  void on_tick(uint32_t) override {
+    const Reading r = plugin_->read(invert_);
+    ui::set_text(note_, r.have_grid ? "" : plugin_->text("choose"));
+    paint_diagram(r);
+    paint_list(r);
+  }
+
+  void on_theme() override { on_tick(0); }
+
  private:
+  struct Node {
+    lv_obj_t *ring{}, *icon{}, *value{}, *extra{}, *name{};
+    int cx = 0, cy = 0;
+  };
+  struct Row {
+    lv_obj_t *icon{}, *name{}, *value{}, *rule{};
+  };
+  enum { SUN, GRID, HOME };
+  // The lines: the sun down and to the grid, the sun down and to the house, the grid to the house.
+  enum { SUN_DOWN_G, SUN_TO_GRID, SUN_DOWN_H, SUN_TO_HOME, GRID_HOME, LINES };
+  enum { DOT_SUN_GRID, DOT_SUN_HOME, DOT_GRID_HOME, DOTS };
+  static constexpr int MAX_ROWS = 7;
+
+  void layout_diagram() {
+    const int r = dia_ / 2;
+    const int bottom_cy = height_ - label_h_ - ui::px(6) - r;
+    const int top_cy = label_h_ + ui::px(6) + r;
+    nodes_[SUN].cx = diagram_w_ / 2, nodes_[SUN].cy = top_cy;
+    nodes_[GRID].cx = r, nodes_[GRID].cy = bottom_cy;
+    nodes_[HOME].cx = diagram_w_ - r, nodes_[HOME].cy = bottom_cy;
+    const int text_block = value_h_ + label_h_;
+    const int ih = ui::line_height(Font::ICON);
+    for (int i = 0; i < 3; ++i) {
+      Node &n = nodes_[i];
+      place(n.ring, n.cx - r, n.cy - r, dia_, dia_);
+      const int top = n.cy - (ih + text_block) / 2;
+      place(n.icon, n.cx - r, top, dia_, ih);
+      place(n.value, n.cx - r + ring_w_, top + ih, dia_ - 2 * ring_w_, value_h_);
+      place(n.extra, n.cx - r + ring_w_, top + ih + value_h_, dia_ - 2 * ring_w_, label_h_);
+      // The sun's name above it, the others' below.
+      const int ny = i == SUN ? n.cy - r - label_h_ - ui::px(4) : n.cy + r + ui::px(4);
+      place(n.name, n.cx - r - ui::px(20), ny, dia_ + ui::px(40), label_h_);
+    }
+    // Lines as in Home Assistant's card: two from the bottom of the sun, one bending left to the grid, one right to
+    // the house, a little above the middle of the lower circles; the grid's line to the house a little below it.
+    const int off = r / 4, lw = line_w_;
+    const Node &sun = nodes_[SUN], &grid = nodes_[GRID], &home = nodes_[HOME];
+    upper_y_ = grid.cy - r / 4;
+    lower_y_ = grid.cy + r / 4;
+    const int sun_bottom = sun.cy + r - ring_w_;
+    place(lines_[SUN_DOWN_G], sun.cx - off, sun_bottom, lw, upper_y_ - sun_bottom + lw);
+    place(lines_[SUN_TO_GRID], grid.cx + r - ring_w_, upper_y_, sun.cx - off - (grid.cx + r - ring_w_) + lw, lw);
+    place(lines_[SUN_DOWN_H], sun.cx + off, sun_bottom, lw, upper_y_ - sun_bottom + lw);
+    place(lines_[SUN_TO_HOME], sun.cx + off, upper_y_, home.cx - r + ring_w_ - (sun.cx + off), lw);
+    place(lines_[GRID_HOME], grid.cx + r - ring_w_, lower_y_, home.cx - grid.cx - 2 * (r - ring_w_), lw);
+    const int d = dot_;
+    place(dots_[DOT_SUN_GRID], (grid.cx + r + sun.cx - off) / 2 - d / 2, upper_y_ + lw / 2 - d / 2, d, d);
+    place(dots_[DOT_SUN_HOME], (sun.cx + off + home.cx - r) / 2 - d / 2, upper_y_ + lw / 2 - d / 2, d, d);
+    place(dots_[DOT_GRID_HOME], diagram_w_ / 2 - d / 2, lower_y_ + lw / 2 - d / 2, d, d);
+  }
+
+  void paint_node(Node &n, uint32_t icon, theme::Role role, bool active, const std::string &value,
+                  const std::string &extra, const char *name) {
+    set_border(n.ring, active ? role : theme::TRACK);
+    ui::set_fill(n.ring, Tone::NORMAL, theme::CARD);
+    ui::set_text(n.icon, ui::icon(icon));
+    ui::set_color(n.icon, active ? role : theme::MUTED);
+    ui::set_text(n.value, value);
+    ui::set_color(n.value, theme::INK);
+    ui::set_text(n.extra, extra);
+    ui::set_color(n.extra, theme::MUTED);
+    ui::set_text(n.name, name);
+    ui::set_color(n.name, theme::MUTED);
+  }
+
+  void paint_line(int a, int b, int dot, theme::Role role, bool active) {
+    for (int i : {a, b})
+      if (i >= 0) ui::set_fill(lines_[i], Tone::NORMAL, active ? role : theme::TRACK);
+    show(dots_[dot], active);
+    ui::set_fill(dots_[dot], Tone::NORMAL, role);
+  }
+
+  void paint_diagram(const Reading &r) {
+    const bool on = r.have_grid;
+    for (Node &n : nodes_) {
+      show(n.ring, on);
+      if (!on) ui::set_text(n.icon, ""), ui::set_text(n.value, ""), ui::set_text(n.extra, ""), ui::set_text(n.name, "");
+    }
+    for (lv_obj_t *l : lines_) show(l, on);
+    if (!on) {
+      for (lv_obj_t *d : dots_) show(d, false);
+      return;
+    }
+    const bool has_pv = !std::isnan(r.pv);
+    const float pv = has_pv ? r.pv : 0.0f;
+    const bool importing = r.grid > FLOWING, exporting = r.grid < -FLOWING;
+    const float sun_home = std::min(pv, r.home);
+    paint_node(nodes_[SUN], ICON_SOLAR, SOLAR, pv > FLOWING, has_pv ? plugin_->power_text(pv) : "–",
+               std::isnan(r.pv_today) ? std::string() : plugin_->energy_text(r.pv_today), plugin_->text("solar"));
+    // The screen's fonts have no arrows: the colour and the name say which way the power goes.
+    paint_node(nodes_[GRID], ICON_GRID, exporting ? EXPORT : IMPORT, importing || exporting,
+               plugin_->power_text(r.grid),
+               std::isnan(r.grid_today) ? std::string() : plugin_->energy_text(r.grid_today),
+               plugin_->text(exporting ? "export" : importing ? "import" : "grid"));
+    paint_node(nodes_[HOME], ICON_HOME, theme::ACCENT, r.home > FLOWING, plugin_->power_text(r.home),
+               std::isnan(r.coverage) ? std::string() : tessera::format(plugin_->text("percent"), percent(r.coverage)),
+               plugin_->text("home"));
+    paint_line(SUN_DOWN_G, SUN_TO_GRID, DOT_SUN_GRID, EXPORT, has_pv && exporting);
+    paint_line(SUN_DOWN_H, SUN_TO_HOME, DOT_SUN_HOME, SOLAR, sun_home > FLOWING);
+    paint_line(GRID_HOME, -1, DOT_GRID_HOME, IMPORT, importing);
+    // Without a solar sensor, no lines from the sun.
+    for (int i : {SUN_DOWN_G, SUN_TO_GRID, SUN_DOWN_H, SUN_TO_HOME}) show(lines_[i], has_pv);
+    show(nodes_[SUN].ring, has_pv);
+    if (!has_pv) ui::set_text(nodes_[SUN].icon, ""), ui::set_text(nodes_[SUN].value, ""),
+        ui::set_text(nodes_[SUN].extra, ""), ui::set_text(nodes_[SUN].name, "");
+  }
+
+  // Every sensor in a row: its icon, its name and its value; only those chosen.
+  void paint_list(const Reading &r) {
+    struct Item {
+      uint32_t icon;
+      theme::Role role;
+      std::string name, value;
+    };
+    Item items[MAX_ROWS];
+    int n = 0;
+    if (r.have_grid) {
+      const bool exporting = r.grid < -FLOWING;
+      items[n++] = {ICON_GRID, exporting ? EXPORT : IMPORT, plugin_->text(exporting ? "export" : "import"),
+                    plugin_->power_text(r.grid)};
+      if (!std::isnan(r.pv)) items[n++] = {ICON_SOLAR, SOLAR, plugin_->text("row_pv"), plugin_->power_text(r.pv)};
+      items[n++] = {ICON_HOME, theme::ACCENT, plugin_->text("row_home"), plugin_->power_text(r.home)};
+      if (!std::isnan(r.coverage))
+        items[n++] = {ICON_LEAF, theme::MARK_GREEN, plugin_->text("row_coverage"),
+                      tessera::format(plugin_->text("percent"), percent(r.coverage))};
+      if (!std::isnan(r.pv_today))
+        items[n++] = {ICON_PANEL, SOLAR, plugin_->text("row_pv_today"), plugin_->energy_text(r.pv_today)};
+      if (!std::isnan(r.forecast)) {
+        std::string v = plugin_->energy_text(r.forecast);
+        if (!std::isnan(r.pv_today) && r.forecast > 0)
+          v += " · " + tessera::format(plugin_->text("percent"), percent(100.0f * r.pv_today / r.forecast));
+        items[n++] = {ICON_SUNNY, SOLAR, plugin_->text("row_forecast"), v};
+      }
+      if (!std::isnan(r.grid_today))
+        items[n++] = {ICON_METER, IMPORT, plugin_->text("row_grid_today"), plugin_->energy_text(r.grid_today)};
+    }
+    // The rows share the height, at most a comfortable row each, in the middle.
+    const int ih = ui::line_height(Font::ICON_SMALL), th = ui::line_height(Font::TITLE);
+    const int row_h = n ? std::min(height_ / n, std::max(ih, th) + ui::px(ui::large() ? 28 : 14)) : 0;
+    const int top = (height_ - n * row_h) / 2;
+    if (n != rows_shown_) {
+      rows_shown_ = n;
+      for (int i = 0; i < MAX_ROWS; ++i) {
+        Row &row = rows_[i];
+        const int y = top + i * row_h;
+        const int value_w = list_w_ * 2 / 5;
+        place(row.icon, list_x_, y + (row_h - ih) / 2, ih, ih);
+        place(row.name, list_x_ + ih + ui::px(12), y + (row_h - value_h_) / 2, list_w_ - ih - ui::px(12) - value_w,
+              value_h_);
+        place(row.value, list_x_ + list_w_ - value_w, y + (row_h - th) / 2, value_w, th);
+        place(row.rule, list_x_, y + row_h - 1, list_w_, 1);
+      }
+    }
+    for (int i = 0; i < MAX_ROWS; ++i) {
+      Row &row = rows_[i];
+      const bool on = i < n;
+      ui::set_text(row.icon, on ? ui::icon(items[i].icon) : "");
+      ui::set_text(row.name, on ? items[i].name : "");
+      ui::set_text(row.value, on ? items[i].value : "");
+      if (on) {
+        ui::set_color(row.icon, items[i].role);
+        ui::set_color(row.name, theme::INK_SOFT);
+        ui::set_color(row.value, theme::INK);
+      }
+      show(row.rule, on && i < n - 1);
+      ui::set_fill(row.rule, Tone::NORMAL, theme::TRACK);
+    }
+  }
+
   const EnergyFlow *plugin_;
-  FlowView view_;
+  int width_ = 0, height_ = 0, diagram_w_ = 0, list_x_ = 0, list_w_ = 0, dia_ = 0, line_w_ = 0, ring_w_ = 0;
+  int dot_ = 0, label_h_ = 0, value_h_ = 0, upper_y_ = 0, lower_y_ = 0, rows_shown_ = -1;
+  bool invert_ = false;
+  Node nodes_[3];
+  lv_obj_t *lines_[LINES]{}, *dots_[DOTS]{};
+  Row rows_[MAX_ROWS];
+  lv_obj_t *note_{};
 };
 
 void EnergyFlow::setup() {
