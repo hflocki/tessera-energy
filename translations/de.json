@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "name": "Deutsch"
+  },
+  "screen": {
+    "decimal": ",",
+    "choose": "Netzleistung in den Plugin-Details wählen",
+    "solar": "Solar",
+    "home": "Haus",
+    "import": "Netzbezug",
+    "export": "Einspeisung",
+    "coverage": "PV-Deckung {n} %",
+    "grid_share": "Netz {n} %",
+    "today": "Heute",
+    "day_solar": "Solar {v}",
+    "day_grid": "Bezug {v}",
+    "forecast": "{made} von {of} Prognose"
+  },
+  "app": {
+    "name": "Energiefluss",
+    "summary": "Solar, Haus und Netz: was die PV erzeugt, was das Haus braucht, was aus dem Netz kommt oder eingespeist wird, und der Tag bisher.",
+    "tile_name": "Energie",
+    "tile_example": "Solar 1,24 kW → Haus 352 W ← Netz",
+    "invert": "Netz umkehren",
+    "invert_hint": "Für Zähler, die Einspeisung positiv zählen.",
+    "today": "Tag anzeigen",
+    "today_hint": "Solar- und Netzenergie von heute und die Prognose, wenn Platz ist.",
+    "card_name": "Energie im Detail",
+    "input_grid": "Netzleistung",
+    "input_grid_hint": "Leistung des Zählers in W oder kW: positiv Bezug, negativ Einspeisung.",
+    "input_pv": "PV-Leistung",
+    "input_pv_hint": "Was die PV gerade erzeugt, in W oder kW.",
+    "input_pv_today": "PV heute",
+    "input_pv_today_hint": "Heute erzeugte Solarenergie in kWh. Darf leer bleiben.",
+    "input_coverage": "PV-Deckung",
+    "input_coverage_hint": "Sensor in %, wie viel vom Verbrauch die PV deckt. Leer: aus PV und Netz berechnet.",
+    "input_forecast": "Prognose heute",
+    "input_forecast_hint": "Solarprognose für heute in kWh, z. B. von Forecast.Solar. Darf leer bleiben.",
+    "input_grid_today": "Netzbezug heute",
+    "input_grid_today_hint": "Heute aus dem Netz bezogene Energie in kWh. Darf leer bleiben."
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "name": "English"
+  },
+  "screen": {
+    "decimal": ".",
+    "choose": "Choose the grid power in the plugin's details",
+    "solar": "Solar",
+    "home": "House",
+    "import": "From the grid",
+    "export": "To the grid",
+    "coverage": "Solar covers {n} %",
+    "grid_share": "Grid {n} %",
+    "today": "Today",
+    "day_solar": "solar {v}",
+    "day_grid": "from the grid {v}",
+    "forecast": "{made} of {of} forecast"
+  },
+  "app": {
+    "name": "Energy flow",
+    "summary": "Solar, house and grid: what the panels make, what the house uses, what comes from the grid or goes back, and the day so far.",
+    "tile_name": "Energy",
+    "tile_example": "Solar 1.24 kW → House 352 W ← Grid",
+    "invert": "Invert the grid",
+    "invert_hint": "For a meter that counts power going to the grid as positive.",
+    "today": "Show the day",
+    "today_hint": "Today's solar and grid energy and the forecast, when there is room.",
+    "card_name": "Energy in detail",
+    "input_grid": "Grid power",
+    "input_grid_hint": "The meter's power in W or kW: positive from the grid, negative to it.",
+    "input_pv": "Solar power",
+    "input_pv_hint": "What the panels make now, in W or kW.",
+    "input_pv_today": "Solar today",
+    "input_pv_today_hint": "Today's solar energy in kWh. May stay empty.",
+    "input_coverage": "Solar coverage",
+    "input_coverage_hint": "A sensor in % of the house's use the sun covers. Empty: worked out from solar and grid.",
+    "input_forecast": "Forecast today",
+    "input_forecast_hint": "Today's solar forecast in kWh, such as Forecast.Solar's. May stay empty.",
+    "input_grid_today": "Grid today",
+    "input_grid_today_hint": "Today's energy from the grid in kWh. May stay empty."
+  }
+}

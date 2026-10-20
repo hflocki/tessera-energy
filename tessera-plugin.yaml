@@ -1,0 +1,45 @@
+# Electricity at home with solar: what the solar panels make, what the house uses, what comes from the grid or goes
+# back to it, and the day so far. Every field is explained in docs/MANIFEST.md of tessera-plugins.
+id: energy_flow
+version: 1.0.0
+# 0.9: Tone, ui::set_fill and one-line labels; 0.10: ui::text.
+api: "0.10"
+icon: solar-power
+maintainer: hflocki
+license: MIT
+stage: beta
+topics: [energy, home]
+requires:
+  esphome: 2026.6.2
+boards: any
+flash_kb: 16
+
+permissions:
+  # The screen reads the chosen sensors itself.
+  read_entities: ["{grid}", "{pv}", "{pv_today}", "{coverage}", "{forecast}", "{grid_today}"]
+
+inputs:
+  # The grid power is the one that matters; every other sensor may stay empty.
+  - { id: grid, kind: entity, domains: [sensor], scope: screen, label: input_grid, hint: input_grid_hint }
+  - { id: pv, kind: entity, domains: [sensor], scope: screen, label: input_pv, hint: input_pv_hint }
+  - { id: pv_today, kind: entity, domains: [sensor], scope: screen, label: input_pv_today, hint: input_pv_today_hint }
+  - { id: coverage, kind: entity, domains: [sensor], scope: screen, label: input_coverage, hint: input_coverage_hint }
+  - { id: forecast, kind: entity, domains: [sensor], scope: screen, label: input_forecast, hint: input_forecast_hint }
+  - { id: grid_today, kind: entity, domains: [sensor], scope: screen, label: input_grid_today,
+      hint: input_grid_today_hint }
+
+tiles:
+  - id: flow
+    name: tile_name
+    icon: solar-power
+    sizes: { min: 1x1, max: 6x3 }
+    # Three circles with icons, six labels, two arrows, the share bar and a line of the day.
+    memory: 1400
+    example: tile_example
+    options:
+      - { id: invert, kind: toggle, default: false, label: invert, hint: invert_hint }
+      - { id: today, kind: toggle, default: true, label: today, hint: today_hint }
+
+cards:
+  # A tap on the tile: the same, large, with the day so far.
+  - { id: details, name: card_name, wide: true }

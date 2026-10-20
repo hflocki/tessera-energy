@@ -1,0 +1,37 @@
+# What a screen gets when it takes this plugin. Tessera includes this file from the screen's <name>.plugins.yaml with
+# the entities chosen in the plugin's details filled in, and adds the components folder beside it. An entity that was
+# not chosen keeps the default, which no entity has, and stays empty.
+defaults:
+  GRID: sensor.energy_not_chosen
+  PV: sensor.energy_not_chosen
+  PV_TODAY: sensor.energy_not_chosen
+  COVERAGE: sensor.energy_not_chosen
+  FORECAST: sensor.energy_not_chosen
+  GRID_TODAY: sensor.energy_not_chosen
+
+# Each sensor's state and its unit (W or kW, Wh or kWh), read straight from Home Assistant.
+text_sensor:
+  - { platform: homeassistant, id: energy_grid, entity_id: "${GRID}", internal: true }
+  - { platform: homeassistant, id: energy_grid_unit, entity_id: "${GRID}", attribute: unit_of_measurement, internal: true }
+  - { platform: homeassistant, id: energy_pv, entity_id: "${PV}", internal: true }
+  - { platform: homeassistant, id: energy_pv_unit, entity_id: "${PV}", attribute: unit_of_measurement, internal: true }
+  - { platform: homeassistant, id: energy_pv_today, entity_id: "${PV_TODAY}", internal: true }
+  - { platform: homeassistant, id: energy_pv_today_unit, entity_id: "${PV_TODAY}", attribute: unit_of_measurement, internal: true }
+  - { platform: homeassistant, id: energy_coverage, entity_id: "${COVERAGE}", internal: true }
+  - { platform: homeassistant, id: energy_forecast, entity_id: "${FORECAST}", internal: true }
+  - { platform: homeassistant, id: energy_forecast_unit, entity_id: "${FORECAST}", attribute: unit_of_measurement, internal: true }
+  - { platform: homeassistant, id: energy_grid_today, entity_id: "${GRID_TODAY}", internal: true }
+  - { platform: homeassistant, id: energy_grid_today_unit, entity_id: "${GRID_TODAY}", attribute: unit_of_measurement, internal: true }
+
+energy_flow:
+  grid: energy_grid
+  grid_unit: energy_grid_unit
+  pv: energy_pv
+  pv_unit: energy_pv_unit
+  pv_today: energy_pv_today
+  pv_today_unit: energy_pv_today_unit
+  coverage: energy_coverage
+  forecast: energy_forecast
+  forecast_unit: energy_forecast_unit
+  grid_today: energy_grid_today
+  grid_today_unit: energy_grid_today_unit

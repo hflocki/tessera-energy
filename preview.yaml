@@ -1,0 +1,14 @@
+# What tools/preview.py shows (docs/PREVIEW.md). The bench builds with plugin.yaml's defaults, so every sensor reads
+# sensor.energy_not_chosen here: one made-up value for all of them.
+tiles:
+  - tile: flow
+    name: Energy
+    sizes: [1x1, 3x1, 3x2]
+
+cards:
+  - { card: details }
+
+states:
+  sensor.energy_not_chosen:
+    state: "352"
+    attributes: { unit_of_measurement: W }
