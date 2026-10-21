@@ -605,7 +605,9 @@ class DetailsCard : public tessera::Card {
       inside(n.ring, n.extra, dia_ - 2 * ring_w_, label_h_, start + ih + value_h_ + label_h_ / 2);
       // The sun's name above it, the others' below.
       const int ny = i == SUN ? n.cy - r - label_h_ - ui::px(4) : n.cy + r + ui::px(4);
-      place(n.name, n.cx - r - ui::px(20), ny, dia_ + ui::px(40), label_h_);
+      // The name a little wider than its circle, but inside the card at the edges.
+      const int name_w = dia_ + ui::px(40);
+      place(n.name, std::max(0, std::min(n.cx - name_w / 2, width_ - name_w)), std::max(0, ny), name_w, label_h_);
     }
     // Lines as in Home Assistant's card: two from the bottom of the sun, one bending left to the grid, one right to
     // the house, a little above the middle of the lower circles; the grid's line to the house a little below it.

@@ -1,7 +1,7 @@
 # Electricity at home with solar: what the solar panels make, what the house uses, what comes from the grid or goes
 # back to it, and the day so far. Every field is explained in docs/MANIFEST.md of tessera-plugins.
 id: energy_flow
-version: 1.1.1
+version: 1.1.2
 # 0.9: Tone, ui::set_fill and one-line labels; 0.10: ui::text.
 api: "0.10"
 icon: solar-power
