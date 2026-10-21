@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.4
+- On a small card the rings choose a font and icon that fit, and leave out the day where it does not fit.
+- Each value in the list is as wide as it is; the names take the rest, smaller on a narrow list.
+
 ## 1.1.3
 - Each sensor has its own default entity, and the picture on the Plugins page shows the plugin with values.
 

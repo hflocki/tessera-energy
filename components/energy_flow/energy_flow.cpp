@@ -593,16 +593,26 @@ class DetailsCard : public tessera::Card {
     nodes_[SUN].cx = diagram_w_ / 2, nodes_[SUN].cy = top_cy;
     nodes_[GRID].cx = r, nodes_[GRID].cy = bottom_cy;
     nodes_[HOME].cx = diagram_w_ - r, nodes_[HOME].cy = bottom_cy;
-    const int text_block = value_h_ + label_h_;
-    const int ih = ui::line_height(Font::ICON);
+    // What fits inside a ring: the value in the larger font where "8.88 kW" fits its width, the large icon and the
+    // day's energy under the value only where the three fit its height.
+    const int inner = dia_ - 2 * ring_w_ - ui::px(6);
+    const Font value_font = ui::text_width("8.88 kW", Font::BODY_LARGE) <= inner ? Font::BODY_LARGE : Font::BODY;
+    const int vh = ui::line_height(value_font);
+    const Font icon_font = ui::line_height(Font::ICON) + vh + label_h_ <= inner ? Font::ICON : Font::ICON_SMALL;
+    const int ih = ui::line_height(icon_font);
+    show_extra_ = ih + vh + label_h_ <= inner;
+    const int text_block = vh + (show_extra_ ? label_h_ : 0);
     for (int i = 0; i < 3; ++i) {
       Node &n = nodes_[i];
       place(n.ring, n.cx - r, n.cy - r, dia_, dia_);
       // Icon, value and day inside the ring, as its children: one part, the three centred around its middle.
       const int start = -(ih + text_block) / 2;
+      ui::set_font(n.icon, icon_font);
+      ui::set_font(n.value, value_font);
       inside(n.ring, n.icon, dia_ - 2 * ring_w_, ih, start + ih / 2);
-      inside(n.ring, n.value, dia_ - 2 * ring_w_, value_h_, start + ih + value_h_ / 2);
-      inside(n.ring, n.extra, dia_ - 2 * ring_w_, label_h_, start + ih + value_h_ + label_h_ / 2);
+      inside(n.ring, n.value, dia_ - 2 * ring_w_, vh, start + ih + vh / 2);
+      inside(n.ring, n.extra, dia_ - 2 * ring_w_, label_h_, start + ih + vh + label_h_ / 2);
+      show(n.extra, show_extra_);
       // The sun's name above it, the others' below.
       const int ny = i == SUN ? n.cy - r - label_h_ - ui::px(4) : n.cy + r + ui::px(4);
       // The name a little wider than its circle, but inside the card at the edges.
@@ -636,7 +646,7 @@ class DetailsCard : public tessera::Card {
     else ui::set_color(n.icon, theme::MUTED);
     ui::set_text(n.value, value);
     ui::set_color(n.value, theme::INK);
-    ui::set_text(n.extra, extra);
+    ui::set_text(n.extra, show_extra_ ? extra : std::string());
     ui::set_color(n.extra, theme::MUTED);
     ui::set_text(n.name, name);
     ui::set_color(n.name, theme::MUTED);
@@ -715,6 +725,9 @@ class DetailsCard : public tessera::Card {
     }
     // The rows share the height, at most a comfortable row each, in the middle.
     const int ih = ui::line_height(Font::ICON_SMALL), th = ui::line_height(Font::TITLE);
+    // On a narrow list the names in the smaller font; each value as wide as it is, the name taking the rest.
+    const Font name_font = list_w_ >= ui::mm(70) ? Font::BODY_LARGE : Font::BODY;
+    const int name_h = ui::line_height(name_font);
     const int row_h = n ? std::min(height_ / n, std::max(ih, th) + ui::px(ui::large() ? 28 : 14)) : 0;
     const int top = (height_ - n * row_h) / 2;
     if (n != rows_shown_) {
@@ -722,11 +735,8 @@ class DetailsCard : public tessera::Card {
       for (int i = 0; i < MAX_ROWS; ++i) {
         Row &row = rows_[i];
         const int y = top + i * row_h;
-        const int value_w = list_w_ * 2 / 5;
+        ui::set_font(row.name, name_font);
         place(row.icon, list_x_, y + (row_h - ih) / 2, ih, ih);
-        place(row.name, list_x_ + ih + ui::px(12), y + (row_h - value_h_) / 2, list_w_ - ih - ui::px(12) - value_w,
-              value_h_);
-        place(row.value, list_x_ + list_w_ - value_w, y + (row_h - th) / 2, value_w, th);
         place(row.rule, list_x_, y + row_h - 1, list_w_, 1);
       }
     }
@@ -736,6 +746,13 @@ class DetailsCard : public tessera::Card {
       ui::set_text(row.icon, on ? ui::icon(items[i].icon) : "");
       ui::set_text(row.name, on ? items[i].name : "");
       ui::set_text(row.value, on ? items[i].value : "");
+      if (on) {
+        const int y = top + i * row_h;
+        const int name_x = list_x_ + ih + ui::px(10);
+        const int value_w = std::min(list_w_ * 3 / 5, ui::text_width(items[i].value.c_str(), Font::TITLE) + ui::px(4));
+        place(row.name, name_x, y + (row_h - name_h) / 2, list_x_ + list_w_ - value_w - ui::px(8) - name_x, name_h);
+        place(row.value, list_x_ + list_w_ - value_w, y + (row_h - th) / 2, value_w, th);
+      }
       if (on) {
         set_readable(row.icon, Tone::NORMAL, items[i].role);
         ui::set_color(row.name, theme::INK_SOFT);
@@ -749,6 +766,7 @@ class DetailsCard : public tessera::Card {
   const EnergyFlow *plugin_;
   int width_ = 0, height_ = 0, diagram_w_ = 0, list_x_ = 0, list_w_ = 0, dia_ = 0, line_w_ = 0, ring_w_ = 0;
   int dot_ = 0, label_h_ = 0, value_h_ = 0, upper_y_ = 0, lower_y_ = 0, rows_shown_ = -1;
+  bool show_extra_ = true;
   bool invert_ = false;
   Node nodes_[3];
   lv_obj_t *lines_[LINES]{}, *dots_[DOTS]{};
