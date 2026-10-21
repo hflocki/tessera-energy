@@ -12,6 +12,27 @@ using tessera::Font;
 using tessera::Tone;
 namespace ui = tessera::ui;
 
+// ---- Readable colours ---------------------------------------------------------------------------------------------
+
+// A colour's luminance and the WCAG contrast of two: amber or yellow words on the light look's white card fall under
+// what a person reads, so there they take the ink instead; on the dark look they keep their colour.
+static float luminance(lv_color_t c) {
+  auto channel = [](uint8_t v) {
+    const float s = v / 255.0f;
+    return s <= 0.03928f ? s / 12.92f : std::pow((s + 0.055f) / 1.055f, 2.4f);
+  };
+  return 0.2126f * channel(c.red) + 0.7152f * channel(c.green) + 0.0722f * channel(c.blue);
+}
+static bool reads_on_card(lv_color_t c) {
+  const float a = luminance(c), b = luminance(ui::color(theme::CARD));
+  return (std::max(a, b) + 0.05f) / (std::min(a, b) + 0.05f) >= 3.0f;
+}
+// A label (words or an icon) in a tone's or a role's colour where that reads on the card, else in the ink.
+static void set_readable(lv_obj_t *label, tessera::Tone tone, theme::Role role) {
+  if (reads_on_card(ui::tone_color(tone, role))) ui::set_tone(label, tone, role);
+  else ui::set_color(label, theme::INK);
+}
+
 static constexpr uint32_t ICON_SOLAR = 0xF0A72;  // solar-power
 static constexpr uint32_t ICON_HOME = 0xF02DC;   // home
 static constexpr uint32_t ICON_GRID = 0xF0D3E;   // transmission-tower
@@ -23,6 +44,14 @@ static constexpr float FLOWING = 5.0f;           // watts below which nothing co
 static constexpr theme::Role SOLAR = theme::MARK_AMBER;
 static constexpr theme::Role IMPORT = theme::MARK_BLUE;
 static constexpr theme::Role EXPORT = theme::MARK_GREEN;
+
+// A label inside a circle: a child of it, so the two are one part, centred in it.
+static void inside(lv_obj_t *circle, lv_obj_t *label, int w, int h, int dy = 0) {
+  lv_obj_set_style_pad_all(circle, 0, 0);
+  lv_obj_remove_flag(circle, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_size(label, std::max(1, w), std::max(1, h));
+  lv_obj_align(label, LV_ALIGN_CENTER, 0, dy);
+}
 
 // ---- Reading the sensors ------------------------------------------------------------------------------------------
 
@@ -110,9 +139,12 @@ static void place(lv_obj_t *obj, int x, int y, int w, int h) {
 static void set_bg_opa(lv_obj_t *obj, lv_opa_t opa) {
   if (lv_obj_get_style_bg_opa(obj, LV_PART_MAIN) != opa) lv_obj_set_style_bg_opa(obj, opa, 0);
 }
+// Shown or hidden, only when it differs. A hidden part is not drawn and takes no room.
 static void show(lv_obj_t *obj, bool on) {
-  const lv_opa_t opa = on ? LV_OPA_COVER : LV_OPA_TRANSP;
-  if (lv_obj_get_style_opa(obj, LV_PART_MAIN) != opa) lv_obj_set_style_opa(obj, opa, 0);
+  if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) == on) {
+    if (on) lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+  }
 }
 
 static int percent(float v) { return static_cast<int>(lroundf(v)); }
@@ -151,7 +183,7 @@ class FlowView {
     for (Block &b : blocks_) {
       b.circle = ui::block(parent, theme::TRACK);
       lv_obj_set_style_radius(b.circle, LV_RADIUS_CIRCLE, 0);
-      b.icon = ui::label(parent, big_icon_ ? Font::ICON : Font::ICON_SMALL, theme::MUTED);
+      b.icon = ui::label(b.circle, big_icon_ ? Font::ICON : Font::ICON_SMALL, theme::MUTED);
       lv_obj_set_style_text_align(b.icon, LV_TEXT_ALIGN_CENTER, 0);
       b.label = ui::label(parent, Font::BODY, theme::MUTED);
       b.value = ui::label(parent, value_font_, theme::INK);
@@ -172,21 +204,27 @@ class FlowView {
     fc_label_ = ui::label(parent, Font::BODY, theme::MUTED);
     note_ = ui::label(parent, Font::BODY_LARGE, theme::MUTED);
     place(note_, 0, (height_ - ui::line_height(Font::BODY_LARGE)) / 2, width_, ui::line_height(Font::BODY_LARGE));
+    // Nothing shows until the first paint has placed it.
+    for (Block &b : blocks_) hide_block(b);
+    for (lv_obj_t *o : {arrows_[0], arrows_[1], share_track_, share_sun_, share_grid_, share_left_, share_right_, day_,
+                        fc_track_, fc_fill_, fc_label_})
+      show(o, false);
   }
 
   void paint(const Reading &r) {
     if (!r.have_grid) {
       for (Block &b : blocks_) hide_block(b);
-      for (lv_obj_t *a : arrows_) ui::set_text(a, "");
-      show(share_track_, false), show(share_sun_, false), show(share_grid_, false), show(fc_track_, false),
-          show(fc_fill_, false);
-      ui::set_text(share_left_, ""), ui::set_text(share_right_, ""), ui::set_text(day_, ""), ui::set_text(fc_label_, "");
+      for (lv_obj_t *o : {arrows_[0], arrows_[1], share_track_, share_sun_, share_grid_, share_left_, share_right_, day_,
+                          fc_track_, fc_fill_, fc_label_})
+        show(o, false);
+      show(note_, true);
       ui::set_text(note_, plugin_->text("choose"));
       ui::set_color(note_, theme::MUTED);
       shown_ = -1;
       return;
     }
     ui::set_text(note_, "");
+    show(note_, false);
 
     // Which parts there is something for, and of those which fit, in this order: the share bar, the day, the
     // forecast. A change of them places everything again.
@@ -213,6 +251,7 @@ class FlowView {
 
     paint_blocks(r, has_pv);
     paint_share(r, parts & 1);
+    show(day_, parts & 2);
     ui::set_text(day_, parts & 2 ? day : "");
     ui::set_color(day_, theme::INK_SOFT);
     paint_forecast(r, parts & 4);
@@ -244,7 +283,7 @@ class FlowView {
     const int ih = ui::line_height(big_icon_ ? Font::ICON : Font::ICON_SMALL);
     auto put_block = [&](Block &b, int x, int w) {
       place(b.circle, x, y + (main_h_ - dia_) / 2, dia_, dia_);
-      place(b.icon, x, y + (main_h_ - ih) / 2, dia_, ih);
+      inside(b.circle, b.icon, dia_, ih);
       const int tx = x + dia_ + ui::px(8), tw = std::max(1, w - dia_ - ui::px(8));
       place(b.label, tx, y + (main_h_ - text_h) / 2, tw, label_h_);
       place(b.value, tx, y + (main_h_ - text_h) / 2 + label_h_, tw, value_h_);
@@ -293,25 +332,31 @@ class FlowView {
   }
 
   void hide_block(Block &b) {
-    ui::set_text(b.icon, "");
-    ui::set_text(b.label, "");
-    ui::set_text(b.value, "");
-    show(b.circle, false);
+    show(b.circle, false);  // its icon with it
+    show(b.label, false);
+    show(b.value, false);
+  }
+  void show_block(Block &b) {
+    show(b.circle, true);
+    show(b.label, true);
+    show(b.value, true);
   }
 
   // A circle tinted in its colour with the icon in full colour while power flows there; grey while not.
   static void paint_circle(Block &b, uint32_t icon, theme::Role role, bool active) {
     show(b.circle, true);
     ui::set_fill(b.circle, Tone::NORMAL, active ? role : theme::TRACK);
-    set_bg_opa(b.circle, active ? LV_OPA_20 : LV_OPA_COVER);
+    set_bg_opa(b.circle, active ? LV_OPA_20 : LV_OPA_60);
     ui::set_text(b.icon, ui::icon(icon));
-    ui::set_color(b.icon, active ? role : theme::MUTED);
+    if (active) set_readable(b.icon, Tone::NORMAL, role);
+    else ui::set_color(b.icon, theme::MUTED);
   }
 
   void paint_blocks(const Reading &r, bool has_pv) {
     const bool importing = r.grid > FLOWING, exporting = r.grid < -FLOWING;
     const theme::Role grid_role = exporting ? EXPORT : IMPORT;
     Block &g = blocks_[GRID];
+    show_block(g);
     paint_circle(g, ICON_GRID, grid_role, importing || exporting);
     ui::set_text(g.label, plugin_->text(exporting ? "export" : "import"));
     ui::set_color(g.label, theme::MUTED);
@@ -322,6 +367,7 @@ class FlowView {
     Block &s = blocks_[SUN];
     if (wide_) {
       if (has_pv) {
+        show_block(s);
         paint_circle(s, ICON_SOLAR, SOLAR, sunny);
         ui::set_text(s.label, plugin_->text("solar"));
         ui::set_color(s.label, theme::MUTED);
@@ -331,6 +377,7 @@ class FlowView {
         hide_block(s);
       }
       Block &h = blocks_[HOME];
+      show_block(h);
       paint_circle(h, ICON_HOME, theme::INK, false);
       ui::set_color(h.icon, theme::INK);
       ui::set_text(h.label, plugin_->text("home"));
@@ -338,14 +385,18 @@ class FlowView {
       ui::set_text(h.value, plugin_->power_text(r.home));
       ui::set_color(h.value, theme::INK);
       // The sun flows to the house; the grid to the house (leftwards) or from it (rightwards).
+      show(arrows_[0], sunny);
+      show(arrows_[1], importing || exporting);
       ui::set_text(arrows_[0], sunny ? ui::icon(ICON_RIGHT) : "");
-      ui::set_color(arrows_[0], SOLAR);
+      set_readable(arrows_[0], Tone::NORMAL, SOLAR);
       ui::set_text(arrows_[1], importing ? ui::icon(ICON_LEFT) : exporting ? ui::icon(ICON_RIGHT) : "");
-      ui::set_color(arrows_[1], grid_role);
+      set_readable(arrows_[1], Tone::NORMAL, grid_role);
     } else {
       // Narrow: "Solar 1,24 kW" in one line under the grid, amber while the sun gives.
+      show(s.label, has_pv);
       ui::set_text(s.label, has_pv ? std::string(plugin_->text("solar")) + " " + plugin_->power_text(r.pv) : "");
-      ui::set_color(s.label, sunny ? SOLAR : theme::MUTED);
+      if (sunny) set_readable(s.label, Tone::NORMAL, SOLAR);
+      else ui::set_color(s.label, theme::MUTED);
     }
   }
 
@@ -362,6 +413,8 @@ class FlowView {
       ui::set_fill(share_sun_, Tone::NORMAL, SOLAR);
       ui::set_fill(share_grid_, Tone::NORMAL, IMPORT);
     }
+    show(share_left_, on);
+    show(share_right_, on);
     ui::set_text(share_left_, on ? tessera::format(plugin_->text("coverage"), percent(r.coverage)) : "");
     ui::set_text(share_right_,
                  on && r.grid > FLOWING ? tessera::format(plugin_->text("grid_share"), 100 - percent(r.coverage)) : "");
@@ -373,6 +426,7 @@ class FlowView {
   void paint_forecast(const Reading &r, bool on) {
     show(fc_track_, on);
     show(fc_fill_, on && r.pv_today > 0);
+    show(fc_label_, on);
     if (!on) {
       ui::set_text(fc_label_, "");
       return;
@@ -485,11 +539,11 @@ class DetailsCard : public tessera::Card {
       lv_obj_set_style_radius(n.ring, LV_RADIUS_CIRCLE, 0);
       lv_obj_set_style_border_width(n.ring, ring_w_, 0);
       lv_obj_set_style_border_side(n.ring, LV_BORDER_SIDE_FULL, 0);
-      n.icon = ui::label(c.parent, Font::ICON, theme::INK);
+      n.icon = ui::label(n.ring, Font::ICON, theme::INK);
       lv_obj_set_style_text_align(n.icon, LV_TEXT_ALIGN_CENTER, 0);
-      n.value = ui::label(c.parent, Font::BODY_LARGE, theme::INK);
+      n.value = ui::label(n.ring, Font::BODY_LARGE, theme::INK);
       lv_obj_set_style_text_align(n.value, LV_TEXT_ALIGN_CENTER, 0);
-      n.extra = ui::label(c.parent, Font::BODY, theme::MUTED);
+      n.extra = ui::label(n.ring, Font::BODY, theme::MUTED);
       lv_obj_set_style_text_align(n.extra, LV_TEXT_ALIGN_CENTER, 0);
       n.name = ui::label(c.parent, Font::BODY, theme::MUTED);
       lv_obj_set_style_text_align(n.name, LV_TEXT_ALIGN_CENTER, 0);
@@ -544,10 +598,11 @@ class DetailsCard : public tessera::Card {
     for (int i = 0; i < 3; ++i) {
       Node &n = nodes_[i];
       place(n.ring, n.cx - r, n.cy - r, dia_, dia_);
-      const int top = n.cy - (ih + text_block) / 2;
-      place(n.icon, n.cx - r, top, dia_, ih);
-      place(n.value, n.cx - r + ring_w_, top + ih, dia_ - 2 * ring_w_, value_h_);
-      place(n.extra, n.cx - r + ring_w_, top + ih + value_h_, dia_ - 2 * ring_w_, label_h_);
+      // Icon, value and day inside the ring, as its children: one part, the three centred around its middle.
+      const int start = -(ih + text_block) / 2;
+      inside(n.ring, n.icon, dia_ - 2 * ring_w_, ih, start + ih / 2);
+      inside(n.ring, n.value, dia_ - 2 * ring_w_, value_h_, start + ih + value_h_ / 2);
+      inside(n.ring, n.extra, dia_ - 2 * ring_w_, label_h_, start + ih + value_h_ + label_h_ / 2);
       // The sun's name above it, the others' below.
       const int ny = i == SUN ? n.cy - r - label_h_ - ui::px(4) : n.cy + r + ui::px(4);
       place(n.name, n.cx - r - ui::px(20), ny, dia_ + ui::px(40), label_h_);
@@ -575,7 +630,8 @@ class DetailsCard : public tessera::Card {
     set_border(n.ring, active ? role : theme::TRACK);
     ui::set_fill(n.ring, Tone::NORMAL, theme::CARD);
     ui::set_text(n.icon, ui::icon(icon));
-    ui::set_color(n.icon, active ? role : theme::MUTED);
+    if (active) set_readable(n.icon, Tone::NORMAL, role);
+    else ui::set_color(n.icon, theme::MUTED);
     ui::set_text(n.value, value);
     ui::set_color(n.value, theme::INK);
     ui::set_text(n.extra, extra);
@@ -679,7 +735,7 @@ class DetailsCard : public tessera::Card {
       ui::set_text(row.name, on ? items[i].name : "");
       ui::set_text(row.value, on ? items[i].value : "");
       if (on) {
-        ui::set_color(row.icon, items[i].role);
+        set_readable(row.icon, Tone::NORMAL, items[i].role);
         ui::set_color(row.name, theme::INK_SOFT);
         ui::set_color(row.value, theme::INK);
       }
