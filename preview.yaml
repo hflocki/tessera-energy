@@ -1,14 +1,28 @@
-# What tools/preview.py shows (docs/PREVIEW.md). The bench builds with plugin.yaml's defaults, so every sensor reads
-# sensor.energy_not_chosen here: one made-up value for all of them.
+# What tools/preview.py and the picture on the Plugins page show (docs/PREVIEW.md). The bench builds with plugin.yaml's
+# defaults, one made-up entity per sensor. Each state is also under the attribute "": the bench answers the screen's
+# question for a plain state (which ESPHome sends with an empty attribute) from there.
 tiles:
-  - tile: flow
-    name: Energy
-    sizes: [1x1, 3x1, 3x2]
+  - { tile: flow, name: Energy, sizes: [3x1, 3x2, 2x1, 1x1] }
 
 cards:
   - { card: details }
 
 states:
-  sensor.energy_not_chosen:
-    state: "352"
-    attributes: { unit_of_measurement: W }
+  sensor.energy_grid_not_chosen:
+    state: "330"
+    attributes: { "": "330", unit_of_measurement: W }
+  sensor.energy_pv_not_chosen:
+    state: "1240"
+    attributes: { "": "1240", unit_of_measurement: W }
+  sensor.energy_pv_today_not_chosen:
+    state: "3.4"
+    attributes: { "": "3.4", unit_of_measurement: kWh }
+  sensor.energy_coverage_not_chosen:
+    state: "79"
+    attributes: { "": "79", unit_of_measurement: "%" }
+  sensor.energy_forecast_not_chosen:
+    state: "4.1"
+    attributes: { "": "4.1", unit_of_measurement: kWh }
+  sensor.energy_grid_today_not_chosen:
+    state: "5.2"
+    attributes: { "": "5.2", unit_of_measurement: kWh }

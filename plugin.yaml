@@ -2,12 +2,12 @@
 # the entities chosen in the plugin's details filled in, and adds the components folder beside it. An entity that was
 # not chosen keeps the default, which no entity has, and stays empty.
 defaults:
-  GRID: sensor.energy_not_chosen
-  PV: sensor.energy_not_chosen
-  PV_TODAY: sensor.energy_not_chosen
-  COVERAGE: sensor.energy_not_chosen
-  FORECAST: sensor.energy_not_chosen
-  GRID_TODAY: sensor.energy_not_chosen
+  GRID: sensor.energy_grid_not_chosen
+  PV: sensor.energy_pv_not_chosen
+  PV_TODAY: sensor.energy_pv_today_not_chosen
+  COVERAGE: sensor.energy_coverage_not_chosen
+  FORECAST: sensor.energy_forecast_not_chosen
+  GRID_TODAY: sensor.energy_grid_today_not_chosen
 
 # Each sensor's state and its unit (W or kW, Wh or kWh), read straight from Home Assistant.
 text_sensor:

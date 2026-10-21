@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.3
+- Each sensor has its own default entity, and the picture on the Plugins page shows the plugin with values.
+
 ## 1.1.2
 - On the card, the names under the circles stay inside the card at its edges.
 
