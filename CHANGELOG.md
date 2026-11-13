@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.5
+- Coverage no longer blocks installation: it is now a per-tile option set after install. Leave it empty and the plugin works it out from solar and grid.
+
 ## 1.1.4
 - On a small card the rings choose a font and icon that fit, and leave out the day where it does not fit.
 - Each value in the list is as wide as it is; the names take the rest, smaller on a narrow list.

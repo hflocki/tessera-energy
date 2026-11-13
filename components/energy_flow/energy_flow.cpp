@@ -86,7 +86,7 @@ static float kwh(float v, const char *unit) {
   return v;
 }
 
-Reading EnergyFlow::read(bool invert) const {
+Reading EnergyFlow::read(bool invert, float coverage_sensor) const {
   Reading r;
   r.grid = watts(number(F_GRID), unit(F_GRID_UNIT));
   r.have_grid = !std::isnan(r.grid);
@@ -94,7 +94,7 @@ Reading EnergyFlow::read(bool invert) const {
   r.pv = watts(number(F_PV), unit(F_PV_UNIT));
   if (!std::isnan(r.pv)) r.pv = std::max(0.0f, r.pv);
   if (r.have_grid) r.home = std::max(0.0f, r.grid + (std::isnan(r.pv) ? 0.0f : r.pv));
-  r.coverage = number(F_COVERAGE);
+  r.coverage = !std::isnan(coverage_sensor) ? coverage_sensor : NAN;
   if (std::isnan(r.coverage) && !std::isnan(r.pv) && !std::isnan(r.home))
     r.coverage = r.home > FLOWING ? 100.0f * std::min(r.pv, r.home) / r.home : (r.pv > FLOWING ? 100.0f : 0.0f);
   if (!std::isnan(r.coverage)) r.coverage = std::max(0.0f, std::min(100.0f, r.coverage));
@@ -475,13 +475,28 @@ class FlowTile : public tessera::Tile {
     invert_ = c.options["invert"] | false;
     view_.create(c.parent, c.width, c.height, c.options["today"] | true, false);
   }
-  void on_tick(uint32_t) override { view_.paint(plugin_->read(invert_)); }
+  void on_state(JsonObjectConst data) override {
+    JsonObjectConst entities = data["entities"];
+    if (!entities) return;
+    JsonObjectConst cov = entities["coverage"];
+    coverage_sensor_ = NAN;
+    if (cov) {
+      const char *s = cov["state"] | "";
+      if (known(s)) {
+        char *end = nullptr;
+        const float v = strtof(s, &end);
+        if (end != s) coverage_sensor_ = v;
+      }
+    }
+  }
+  void on_tick(uint32_t) override { view_.paint(plugin_->read(invert_, coverage_sensor_)); }
   void on_theme() override {
     view_.on_theme();
     on_tick(0);
   }
   void on_tap() override {
     plugin_->card_invert = invert_;
+    plugin_->card_coverage = coverage_sensor_;
     tessera::open_card(plugin_->plugin_id(), "details", "", tile_);
   }
 
@@ -490,6 +505,7 @@ class FlowTile : public tessera::Tile {
   FlowView view_;
   int tile_ = -1;
   bool invert_ = false;
+  float coverage_sensor_ = NAN;
 };
 
 // ---- The card ------------------------------------------------------------------------------------------------------
@@ -514,6 +530,7 @@ class DetailsCard : public tessera::Card {
     width_ = c.width;
     height_ = c.height;
     invert_ = plugin_->card_invert;
+    coverage_sensor_ = plugin_->card_coverage;
     const bool large = ui::large();
     line_w_ = std::max(2, ui::px(large ? 3 : 2));
     ring_w_ = std::max(2, ui::px(large ? 4 : 3));
@@ -563,8 +580,22 @@ class DetailsCard : public tessera::Card {
     on_tick(0);
   }
 
+  void on_state(JsonObjectConst data) override {
+    JsonObjectConst entities = data["entities"];
+    if (!entities) return;
+    JsonObjectConst cov = entities["coverage"];
+    coverage_sensor_ = NAN;
+    if (cov) {
+      const char *s = cov["state"] | "";
+      if (known(s)) {
+        char *end = nullptr;
+        const float v = strtof(s, &end);
+        if (end != s) coverage_sensor_ = v;
+      }
+    }
+  }
   void on_tick(uint32_t) override {
-    const Reading r = plugin_->read(invert_);
+    const Reading r = plugin_->read(invert_, coverage_sensor_);
     ui::set_text(note_, r.have_grid ? "" : plugin_->text("choose"));
     paint_diagram(r);
     paint_list(r);
@@ -768,6 +799,7 @@ class DetailsCard : public tessera::Card {
   int dot_ = 0, label_h_ = 0, value_h_ = 0, upper_y_ = 0, lower_y_ = 0, rows_shown_ = -1;
   bool show_extra_ = true;
   bool invert_ = false;
+  float coverage_sensor_ = NAN;
   Node nodes_[3];
   lv_obj_t *lines_[LINES]{}, *dots_[DOTS]{};
   Row rows_[MAX_ROWS];
