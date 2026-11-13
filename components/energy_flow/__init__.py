@@ -13,7 +13,7 @@ DEPENDENCIES = ["smart_display"]
 AUTO_LOAD = ["text_sensor"]
 
 # The order is the C++'s (enum Field in energy_flow.h); never reorder one without the other.
-FIELDS = ['grid', 'grid_unit', 'pv', 'pv_unit', 'pv_today', 'pv_today_unit', 'coverage', 'forecast', 'forecast_unit',
+FIELDS = ['grid', 'grid_unit', 'pv', 'pv_unit', 'pv_today', 'pv_today_unit', 'forecast', 'forecast_unit',
           'grid_today', 'grid_today_unit']
 
 energy_flow_ns = cg.esphome_ns.namespace("energy_flow")

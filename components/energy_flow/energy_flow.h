@@ -10,7 +10,7 @@ namespace esphome::energy_flow {
 
 // The values plugin.yaml reads, in the order of FIELDS in __init__.py.
 enum Field : uint8_t {
-  F_GRID, F_GRID_UNIT, F_PV, F_PV_UNIT, F_PV_TODAY, F_PV_TODAY_UNIT, F_COVERAGE, F_FORECAST, F_FORECAST_UNIT,
+  F_GRID, F_GRID_UNIT, F_PV, F_PV_UNIT, F_PV_TODAY, F_PV_TODAY_UNIT, F_FORECAST, F_FORECAST_UNIT,
   F_GRID_TODAY, F_GRID_TODAY_UNIT, FIELD_COUNT
 };
 
@@ -34,14 +34,16 @@ class EnergyFlow : public Component, public tessera::Plugin {
     if (index >= 0 && index < FIELD_COUNT) fields_[index] = s;
   }
   // Everything at once; `invert` for a meter that counts what goes to the grid as positive.
-  Reading read(bool invert) const;
+  // `coverage_sensor`: a tile option value in %; NAN to work it out from solar and grid.
+  Reading read(bool invert, float coverage_sensor = NAN) const;
 
   // "352 W", "1,24 kW", "3,4 kWh" in the screen's decimal sign.
   std::string power_text(float watts) const;
   std::string energy_text(float kwh) const;
 
-  // The tile's "invert" for the card it opens.
+  // The tile's settings for the card it opens.
   mutable bool card_invert = false;
+  mutable float card_coverage = NAN;
 
  protected:
   float number(int index) const;
