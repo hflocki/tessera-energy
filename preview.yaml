@@ -1,28 +1,35 @@
-# What tools/preview.py and the picture on the Plugins page show (docs/PREVIEW.md). The bench builds with plugin.yaml's
-# defaults, one made-up entity per sensor. Each state is also under the attribute "": the bench answers the screen's
-# question for a plain state (which ESPHome sends with an empty attribute) from there.
+# What tools/preview.py and the picture on the Plugins page show (docs/PREVIEW.md): a sunny house that sends power
+# back, a dull day that takes it from the grid with its own house sensor, a tile with only the grid, and one with
+# nothing chosen yet.
 tiles:
-  - { tile: flow, name: Energy, sizes: [3x1, 3x2, 2x1, 1x1] }
+  - tile: flow
+    name: Energy
+    options: { grid: sensor.grid_power, pv: sensor.pv_power, pv_today: sensor.pv_today, forecast: sensor.pv_forecast,
+               grid_today: sensor.grid_today }
+    sizes: [3x1, 3x2, 2x1, 1x1]
+  - tile: flow
+    name: Cloudy
+    options: { grid: sensor.grid_power_kw, pv: sensor.pv_power_low, home: sensor.house_power,
+               coverage: sensor.coverage }
+    sizes: [3x2, 2x1]
+  - tile: flow
+    name: Grid only
+    options: { grid: sensor.grid_power_kw }
+    sizes: [2x1, 1x1]
+  - tile: flow
+    name: Not set up
+    sizes: [2x1]
 
 cards:
   - { card: details }
 
 states:
-  sensor.energy_grid_not_chosen:
-    state: "330"
-    attributes: { "": "330", unit_of_measurement: W }
-  sensor.energy_pv_not_chosen:
-    state: "1240"
-    attributes: { "": "1240", unit_of_measurement: W }
-  sensor.energy_pv_today_not_chosen:
-    state: "3.4"
-    attributes: { "": "3.4", unit_of_measurement: kWh }
-  sensor.energy_coverage_not_chosen:
-    state: "79"
-    attributes: { "": "79", unit_of_measurement: "%" }
-  sensor.energy_forecast_not_chosen:
-    state: "4.1"
-    attributes: { "": "4.1", unit_of_measurement: kWh }
-  sensor.energy_grid_today_not_chosen:
-    state: "5.2"
-    attributes: { "": "5.2", unit_of_measurement: kWh }
+  sensor.grid_power: { state: "-330", attributes: { unit_of_measurement: W } }
+  sensor.pv_power: { state: "1240", attributes: { unit_of_measurement: W } }
+  sensor.pv_today: { state: "3.4", attributes: { unit_of_measurement: kWh } }
+  sensor.pv_forecast: { state: "4.1", attributes: { unit_of_measurement: kWh } }
+  sensor.grid_today: { state: "5200", attributes: { unit_of_measurement: Wh } }
+  sensor.grid_power_kw: { state: "0.62", attributes: { unit_of_measurement: kW } }
+  sensor.pv_power_low: { state: "180", attributes: { unit_of_measurement: W } }
+  sensor.house_power: { state: "800", attributes: { unit_of_measurement: W } }
+  sensor.coverage: { state: "23", attributes: { unit_of_measurement: "%" } }

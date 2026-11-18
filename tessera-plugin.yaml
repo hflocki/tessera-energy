@@ -1,9 +1,9 @@
 # Electricity at home with solar: what the solar panels make, what the house uses, what comes from the grid or goes
 # back to it, and the day so far. Every field is explained in docs/MANIFEST.md of tessera-plugins.
 id: energy_flow
-version: 1.1.4
-# 0.9: Tone, ui::set_fill and one-line labels; 0.10: ui::text.
-api: "0.10"
+version: 2.0.0
+# 0.9: Tone, ui::set_fill and one-line labels; 0.10: ui::text; 0.15: a tile's options of kind entity.
+api: "0.15"
 icon: solar-power
 maintainer: hflocki
 license: MIT
@@ -14,20 +14,6 @@ requires:
 boards: any
 flash_kb: 16
 
-permissions:
-  # The screen reads the chosen sensors itself.
-  read_entities: ["{grid}", "{pv}", "{pv_today}", "{coverage}", "{forecast}", "{grid_today}"]
-
-inputs:
-  # The grid power is the one that matters; every other sensor may stay empty.
-  - { id: grid, kind: entity, domains: [sensor], scope: screen, label: input_grid, hint: input_grid_hint }
-  - { id: pv, kind: entity, domains: [sensor], scope: screen, label: input_pv, hint: input_pv_hint }
-  - { id: pv_today, kind: entity, domains: [sensor], scope: screen, label: input_pv_today, hint: input_pv_today_hint }
-  - { id: coverage, kind: entity, domains: [sensor], scope: screen, label: input_coverage, hint: input_coverage_hint }
-  - { id: forecast, kind: entity, domains: [sensor], scope: screen, label: input_forecast, hint: input_forecast_hint }
-  - { id: grid_today, kind: entity, domains: [sensor], scope: screen, label: input_grid_today,
-      hint: input_grid_today_hint }
-
 tiles:
   - id: flow
     name: tile_name
@@ -36,8 +22,23 @@ tiles:
     # Three circles with icons, six labels, two arrows, the share bar and a line of the day.
     memory: 1400
     example: tile_example
+    # The sensors, chosen per tile: the grid's power is the one that matters, every other may stay empty. The app
+    # sends their states with the tile's data, and another choice needs no build.
     options:
+      - { id: grid, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: opt_grid,
+          hint: opt_grid_hint }
       - { id: invert, kind: toggle, default: false, label: invert, hint: invert_hint }
+      - { id: pv, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: opt_pv, hint: opt_pv_hint }
+      - { id: home, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: opt_home,
+          hint: opt_home_hint }
+      - { id: coverage, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: opt_coverage,
+          hint: opt_coverage_hint }
+      - { id: pv_today, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: opt_pv_today,
+          hint: opt_pv_today_hint }
+      - { id: grid_today, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: opt_grid_today,
+          hint: opt_grid_today_hint }
+      - { id: forecast, kind: entity, domains: [sensor], attributes: [unit_of_measurement], label: opt_forecast,
+          hint: opt_forecast_hint }
       - { id: today, kind: toggle, default: true, label: today, hint: today_hint }
 
 cards:

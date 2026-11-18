@@ -18,18 +18,23 @@ a row of its own (grid, solar, house, coverage, solar today, forecast with how m
 ## Set up
 
 1. In Tessera, open **Plugins**, **Add with a link**, and paste the link of this repository. Add the plugin to a
-   screen.
-2. In the plugin's details on the screen's Plugins tab, under **When building**, choose the sensors:
-   - **Grid power** (needed): your meter's power in W or kW, positive while power comes from the grid and negative
-     while it goes back. A meter that counts the other way round: switch on **Invert the grid** on the tile.
+   screen and build it once.
+2. In **Layout**, place the **Energy** tile and choose its sensors in the tile's settings:
+   - **Grid power** (needed): your meter's power now in W or kW, positive while power comes from the grid and
+     negative while it goes back. A meter that counts the other way round: switch on **Invert the grid**. A kWh
+     counter does not work here; the tile says so.
    - **Solar power**: what the panels make now.
+   - **House power**: what the house uses now, if you have such a sensor. Without it the house is grid + solar.
+   - **Solar coverage**: a sensor in % if you have one; without it the share is worked out from solar and the house.
    - **Solar today**, **Grid today**: today's energy in kWh, for the day so far.
-   - **Solar coverage**: a sensor in % if you have one; without it the share is worked out from solar and grid.
    - **Forecast today**: today's solar forecast in kWh (Forecast.Solar, Solcast).
-   Leave out what you do not have. **Save and build**.
-3. In **Layout**, place the **Energy** tile.
+
+   Leave empty what you do not have. Another choice needs no new build: the tile shows it at once.
 
 ## Good to know
 
-- The house's use is grid + solar. A battery is not part of it yet.
+- Without a **House power** sensor the house's use is grid + solar, so a battery is not part of it. With one (most
+  inverters with a battery have such a sensor) the house and the solar coverage count the battery too.
 - W and kW, Wh and kWh are both understood: the plugin reads each sensor's unit.
+- From 2.0.0 the sensors are chosen per tile, not under **When building**: after the update, choose them again in
+  the tile's settings.

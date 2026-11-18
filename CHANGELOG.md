@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.0
+- The sensors are chosen in the tile's settings instead of when building, and every one but the grid's power may stay
+  empty. Another choice shows at once, without a new build. After the update, choose them again on each tile.
+- A sensor for the house's power: with it the house and the solar coverage count a battery too.
+- The tile says why it shows nothing: no grid sensor chosen, no value from it, or a kWh counter chosen as the grid
+  power.
+
 ## 1.1.4
 - On a small card the rings choose a font and icon that fit, and leave out the day where it does not fit.
 - Each value in the list is as wide as it is; the names take the rest, smaller on a narrow list.

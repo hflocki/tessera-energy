@@ -4,7 +4,7 @@
   },
   "screen": {
     "decimal": ",",
-    "choose": "Netzleistung in den Plugin-Details wählen",
+    "choose": "Netzleistung in der Kachel wählen",
     "solar": "Solar",
     "home": "Haus",
     "import": "Netzbezug",
@@ -22,7 +22,9 @@
     "row_coverage": "PV-Deckung",
     "row_pv_today": "PV heute",
     "row_forecast": "Prognose heute",
-    "row_grid_today": "Netzbezug heute"
+    "row_grid_today": "Netzbezug heute",
+    "no_value": "Kein Wert vom Netz-Sensor",
+    "not_power": "Netz-Sensor zählt kWh: einen in W wählen"
   },
   "app": {
     "name": "Energiefluss",
@@ -34,17 +36,19 @@
     "today": "Tag anzeigen",
     "today_hint": "Solar- und Netzenergie von heute und die Prognose, wenn Platz ist.",
     "card_name": "Energie im Detail",
-    "input_grid": "Netzleistung",
-    "input_grid_hint": "Leistung des Zählers in W oder kW: positiv Bezug, negativ Einspeisung.",
-    "input_pv": "PV-Leistung",
-    "input_pv_hint": "Was die PV gerade erzeugt, in W oder kW.",
-    "input_pv_today": "PV heute",
-    "input_pv_today_hint": "Heute erzeugte Solarenergie in kWh. Darf leer bleiben.",
-    "input_coverage": "PV-Deckung",
-    "input_coverage_hint": "Sensor in %, wie viel vom Verbrauch die PV deckt. Leer: aus PV und Netz berechnet.",
-    "input_forecast": "Prognose heute",
-    "input_forecast_hint": "Solarprognose für heute in kWh, z. B. von Forecast.Solar. Darf leer bleiben.",
-    "input_grid_today": "Netzbezug heute",
-    "input_grid_today_hint": "Heute aus dem Netz bezogene Energie in kWh. Darf leer bleiben."
+    "opt_grid": "Netzleistung",
+    "opt_grid_hint": "Nötig. Aktuelle Leistung des Zählers in W oder kW: positiv Bezug, negativ Einspeisung. Kein kWh-Zähler.",
+    "opt_pv": "PV-Leistung",
+    "opt_pv_hint": "Was die PV gerade erzeugt, in W oder kW. Darf leer bleiben.",
+    "opt_home": "Hausverbrauch",
+    "opt_home_hint": "Was das Haus gerade braucht, in W oder kW, falls es einen solchen Sensor gibt (zählt auch einen Akku mit). Leer: Netz + PV.",
+    "opt_coverage": "PV-Deckung",
+    "opt_coverage_hint": "Sensor in %, wie viel vom aktuellen Verbrauch die PV deckt. Leer: aus PV und Hausverbrauch berechnet.",
+    "opt_pv_today": "PV heute",
+    "opt_pv_today_hint": "Heute erzeugte Solarenergie in kWh. Darf leer bleiben.",
+    "opt_grid_today": "Netzbezug heute",
+    "opt_grid_today_hint": "Heute aus dem Netz bezogene Energie in kWh. Darf leer bleiben.",
+    "opt_forecast": "Prognose heute",
+    "opt_forecast_hint": "Solarprognose für heute in kWh, z. B. von Forecast.Solar. Darf leer bleiben."
   }
 }

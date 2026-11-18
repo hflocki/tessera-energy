@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <strings.h>
 #include <string>
 
 namespace esphome::energy_flow {
@@ -55,52 +56,84 @@ static void inside(lv_obj_t *circle, lv_obj_t *label, int w, int h, int dy = 0) 
 
 // ---- Reading the sensors ------------------------------------------------------------------------------------------
 
-static bool known(const std::string &s) { return !s.empty() && s != "unknown" && s != "unavailable" && s != "None"; }
+// The option ids, in the order of enum Source.
+static const char *const KEYS[SOURCES] = {"grid", "pv", "home", "pv_today", "coverage", "forecast", "grid_today"};
 
-float EnergyFlow::number(int index) const {
-  const text_sensor::TextSensor *s = index >= 0 && index < FIELD_COUNT ? fields_[index] : nullptr;
-  if (!s || !s->has_state() || !known(s->state)) return NAN;
+// A number of a state as Home Assistant sends it; NAN for "unknown", "unavailable" or anything else that is no number.
+static float number(const char *state) {
+  if (!state || !*state) return NAN;
   char *end = nullptr;
-  const float v = strtof(s->state.c_str(), &end);
-  return end == s->state.c_str() ? NAN : v;
+  const float v = strtof(state, &end);
+  return end == state || !std::isfinite(v) ? NAN : v;
 }
 
-const char *EnergyFlow::unit(int index) const {
-  const text_sensor::TextSensor *s = index >= 0 && index < FIELD_COUNT ? fields_[index] : nullptr;
-  return s && s->has_state() ? s->state.c_str() : "";
-}
+// A unit of energy (Wh, kWh, MWh) rather than of power.
+static bool energy_unit(const char *unit) { return strstr(unit, "Wh") || strstr(unit, "wh"); }
 
-// Power in W whatever the sensor's unit (W, kW, MW).
+// Power in W whatever the sensor's unit (W, kW, MW); NAN for a unit of energy.
 static float watts(float v, const char *unit) {
-  if (std::isnan(v)) return v;
-  if (strcmp(unit, "kW") == 0) return v * 1000.0f;
-  if (strcmp(unit, "MW") == 0) return v * 1000000.0f;
+  if (std::isnan(v) || energy_unit(unit)) return NAN;
+  if (unit[0] == 'k' || unit[0] == 'K') return v * 1000.0f;
+  if (unit[0] == 'M') return v * 1000000.0f;
   return v;
 }
 
 // Energy in kWh whatever the sensor's unit (Wh, kWh, MWh).
 static float kwh(float v, const char *unit) {
   if (std::isnan(v)) return v;
-  if (strcmp(unit, "Wh") == 0) return v / 1000.0f;
+  if (strcasecmp(unit, "Wh") == 0) return v / 1000.0f;
   if (strcmp(unit, "MWh") == 0) return v * 1000.0f;
   return v;
 }
 
-Reading EnergyFlow::read(bool invert) const {
+Values EnergyFlow::parse(JsonObjectConst data) {
+  Values out;
+  JsonObjectConst entities = data["entities"];
+  for (int i = 0; i < SOURCES; ++i) {
+    // An option nobody filled in is not there.
+    JsonObjectConst e = entities[KEYS[i]];
+    if (e.isNull()) continue;
+    const float v = number(e["state"] | "");
+    const char *unit = e["attributes"]["unit_of_measurement"] | "";
+    switch (i) {
+      case S_GRID:
+        out.grid_chosen = true;
+        out.grid_energy = energy_unit(unit);
+        out.value[i] = watts(v, unit);
+        break;
+      case S_PV:
+      case S_HOME:
+        out.value[i] = watts(v, unit);
+        break;
+      case S_COVERAGE:
+        out.value[i] = v;
+        break;
+      default:
+        out.value[i] = kwh(v, unit);
+    }
+  }
+  return out;
+}
+
+Reading EnergyFlow::read(const Values &v, bool invert) {
   Reading r;
-  r.grid = watts(number(F_GRID), unit(F_GRID_UNIT));
+  r.grid = v.value[S_GRID];
   r.have_grid = !std::isnan(r.grid);
+  r.note = r.have_grid ? nullptr : !v.grid_chosen ? "choose" : v.grid_energy ? "not_power" : "no_value";
   if (r.have_grid && invert) r.grid = -r.grid;
-  r.pv = watts(number(F_PV), unit(F_PV_UNIT));
+  r.pv = v.value[S_PV];
   if (!std::isnan(r.pv)) r.pv = std::max(0.0f, r.pv);
-  if (r.have_grid) r.home = std::max(0.0f, r.grid + (std::isnan(r.pv) ? 0.0f : r.pv));
-  r.coverage = number(F_COVERAGE);
+  // The house's own sensor where there is one: it also counts what a battery gives.
+  r.home = v.value[S_HOME];
+  if (!std::isnan(r.home)) r.home = std::max(0.0f, r.home);
+  else if (r.have_grid) r.home = std::max(0.0f, r.grid + (std::isnan(r.pv) ? 0.0f : r.pv));
+  r.coverage = v.value[S_COVERAGE];
   if (std::isnan(r.coverage) && !std::isnan(r.pv) && !std::isnan(r.home))
     r.coverage = r.home > FLOWING ? 100.0f * std::min(r.pv, r.home) / r.home : (r.pv > FLOWING ? 100.0f : 0.0f);
   if (!std::isnan(r.coverage)) r.coverage = std::max(0.0f, std::min(100.0f, r.coverage));
-  r.pv_today = kwh(number(F_PV_TODAY), unit(F_PV_TODAY_UNIT));
-  r.forecast = kwh(number(F_FORECAST), unit(F_FORECAST_UNIT));
-  r.grid_today = kwh(number(F_GRID_TODAY), unit(F_GRID_TODAY_UNIT));
+  r.pv_today = v.value[S_PV_TODAY];
+  r.forecast = v.value[S_FORECAST];
+  r.grid_today = v.value[S_GRID_TODAY];
   return r;
 }
 
@@ -218,7 +251,7 @@ class FlowView {
                           fc_track_, fc_fill_, fc_label_})
         show(o, false);
       show(note_, true);
-      ui::set_text(note_, plugin_->text("choose"));
+      ui::set_text(note_, plugin_->text(r.note));
       ui::set_color(note_, theme::MUTED);
       shown_ = -1;
       return;
@@ -475,12 +508,14 @@ class FlowTile : public tessera::Tile {
     invert_ = c.options["invert"] | false;
     view_.create(c.parent, c.width, c.height, c.options["today"] | true, false);
   }
-  void on_tick(uint32_t) override { view_.paint(plugin_->read(invert_)); }
+  void on_state(JsonObjectConst data) override { values_ = EnergyFlow::parse(data); }
+  void on_tick(uint32_t) override { view_.paint(EnergyFlow::read(values_, invert_)); }
   void on_theme() override {
     view_.on_theme();
     on_tick(0);
   }
   void on_tap() override {
+    plugin_->card_values = values_;
     plugin_->card_invert = invert_;
     tessera::open_card(plugin_->plugin_id(), "details", "", tile_);
   }
@@ -488,6 +523,7 @@ class FlowTile : public tessera::Tile {
  private:
   const EnergyFlow *plugin_;
   FlowView view_;
+  Values values_;
   int tile_ = -1;
   bool invert_ = false;
 };
@@ -513,6 +549,7 @@ class DetailsCard : public tessera::Card {
   void open(const tessera::CardContext &c) override {
     width_ = c.width;
     height_ = c.height;
+    values_ = plugin_->card_values;
     invert_ = plugin_->card_invert;
     const bool large = ui::large();
     line_w_ = std::max(2, ui::px(large ? 3 : 2));
@@ -564,12 +601,17 @@ class DetailsCard : public tessera::Card {
   }
 
   void on_tick(uint32_t) override {
-    const Reading r = plugin_->read(invert_);
-    ui::set_text(note_, r.have_grid ? "" : plugin_->text("choose"));
+    const Reading r = EnergyFlow::read(values_, invert_);
+    ui::set_text(note_, r.note ? plugin_->text(r.note) : "");
     paint_diagram(r);
     paint_list(r);
   }
 
+  // The tile it was opened from got new values.
+  void on_state(JsonObjectConst data) override {
+    values_ = EnergyFlow::parse(data);
+    on_tick(0);
+  }
   void on_theme() override { on_tick(0); }
 
  private:
@@ -768,6 +810,7 @@ class DetailsCard : public tessera::Card {
   int dot_ = 0, label_h_ = 0, value_h_ = 0, upper_y_ = 0, lower_y_ = 0, rows_shown_ = -1;
   bool show_extra_ = true;
   bool invert_ = false;
+  Values values_;
   Node nodes_[3];
   lv_obj_t *lines_[LINES]{}, *dots_[DOTS]{};
   Row rows_[MAX_ROWS];

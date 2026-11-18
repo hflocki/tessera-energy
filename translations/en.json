@@ -4,7 +4,7 @@
   },
   "screen": {
     "decimal": ".",
-    "choose": "Choose the grid power in the plugin's details",
+    "choose": "Choose the grid power in the tile's settings",
     "solar": "Solar",
     "home": "House",
     "import": "From the grid",
@@ -22,7 +22,9 @@
     "row_coverage": "Solar coverage",
     "row_pv_today": "Solar today",
     "row_forecast": "Forecast today",
-    "row_grid_today": "From the grid today"
+    "row_grid_today": "From the grid today",
+    "no_value": "No value from the grid sensor",
+    "not_power": "Grid sensor counts kWh: choose one in W"
   },
   "app": {
     "name": "Energy flow",
@@ -34,17 +36,19 @@
     "today": "Show the day",
     "today_hint": "Today's solar and grid energy and the forecast, when there is room.",
     "card_name": "Energy in detail",
-    "input_grid": "Grid power",
-    "input_grid_hint": "The meter's power in W or kW: positive from the grid, negative to it.",
-    "input_pv": "Solar power",
-    "input_pv_hint": "What the panels make now, in W or kW.",
-    "input_pv_today": "Solar today",
-    "input_pv_today_hint": "Today's solar energy in kWh. May stay empty.",
-    "input_coverage": "Solar coverage",
-    "input_coverage_hint": "A sensor in % of the house's use the sun covers. Empty: worked out from solar and grid.",
-    "input_forecast": "Forecast today",
-    "input_forecast_hint": "Today's solar forecast in kWh, such as Forecast.Solar's. May stay empty.",
-    "input_grid_today": "Grid today",
-    "input_grid_today_hint": "Today's energy from the grid in kWh. May stay empty."
+    "opt_grid": "Grid power",
+    "opt_grid_hint": "Needed. The meter's power now in W or kW: positive from the grid, negative to it. Not a kWh counter.",
+    "opt_pv": "Solar power",
+    "opt_pv_hint": "What the panels make now, in W or kW. May stay empty.",
+    "opt_home": "House power",
+    "opt_home_hint": "What the house uses now, in W or kW, if you have such a sensor (it also counts a battery). Empty: grid + solar.",
+    "opt_coverage": "Solar coverage",
+    "opt_coverage_hint": "A sensor in % of the house's use the sun covers now. Empty: worked out from solar and the house.",
+    "opt_pv_today": "Solar today",
+    "opt_pv_today_hint": "Today's solar energy in kWh. May stay empty.",
+    "opt_grid_today": "Grid today",
+    "opt_grid_today_hint": "Today's energy from the grid in kWh. May stay empty.",
+    "opt_forecast": "Forecast today",
+    "opt_forecast_hint": "Today's solar forecast in kWh, such as Forecast.Solar's. May stay empty."
   }
 }
