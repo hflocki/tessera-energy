@@ -6,6 +6,7 @@
 - A sensor for the house's power: with it the house and the solar coverage count a battery too.
 - The tile says why it shows nothing: no grid sensor chosen, no value from it, or a kWh counter chosen as the grid
   power.
+- Thanks to @Nokius for the first fix of the coverage field.
 
 ## 1.1.4
 - On a small card the rings choose a font and icon that fit, and leave out the day where it does not fit.
